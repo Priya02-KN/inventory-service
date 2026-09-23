@@ -1,5 +1,4 @@
 package com.company.wms.inventory.event;
-
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
@@ -17,13 +16,13 @@ public class InventoryKafkaProducer {
 
         kafkaTemplate.send(
                 "inventory-updated",
-                event.getSkuId(),
+                event.getPayload().getSkuId(),
                 event
         );
 
         System.out.println(
                 "InventoryUpdated event published for SKU: "
-                        + event.getSkuId()
+                        + event.getPayload().getSkuId()
         );
     }
 }

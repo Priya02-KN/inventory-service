@@ -18,10 +18,5 @@ public class InventoryUpdatedEvent {
     private String source;
     private String correlationId;
     private String entityId;
-
-    private String skuId;
-    private String warehouseId;
-    private String binId;
-    private Long availableQuantity;
+    private InventoryPayload payload;
 }
-

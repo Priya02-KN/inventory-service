@@ -20,8 +20,8 @@ public class InventoryKafkaConsumer {
 
         System.out.println("===== PUTAWAY EVENT RECEIVED =====");
         System.out.println("Event ID: " + event.getEventId());
-        System.out.println("SKU: " + event.getSkuId());
-        System.out.println("Quantity: " + event.getQuantity());
+        System.out.println("SKU: " + event.getPayload().getSkuId());
+        System.out.println("Quantity: " + event.getPayload().getQuantity());
 
         try {
             inventoryService.processPutAway(event);

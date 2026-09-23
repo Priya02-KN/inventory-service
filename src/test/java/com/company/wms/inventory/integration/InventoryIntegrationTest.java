@@ -1,12 +1,12 @@
-package com.company.wms.inventory;
+package com.company.wms.inventory.integration;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class InventoryServiceApplicationTests {
+class InventoryIntegrationTest {
 
     @Test
-    void contextLoads() {
+    void applicationContextLoads() {
     }
-
 }
+

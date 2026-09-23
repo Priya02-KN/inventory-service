@@ -3,8 +3,10 @@ import com.company.wms.inventory.domain.InventoryBalance;
 import com.company.wms.inventory.domain.InventoryMovement;
 import com.company.wms.inventory.domain.OutboxEvent;
 import com.company.wms.inventory.dto.InventoryResponse;
+import com.company.wms.inventory.event.InventoryPayload;
 import com.company.wms.inventory.event.InventoryUpdatedEvent;
 import com.company.wms.inventory.event.PutAwayCompletedEvent;
+import com.company.wms.inventory.exception.InvalidInventoryException;
 import com.company.wms.inventory.mapper.InventoryMapper;
 import com.company.wms.inventory.repository.InventoryBalanceRepository;
 import com.company.wms.inventory.repository.InventoryMovementRepository;
@@ -65,9 +67,20 @@ public class InventoryService {
         }
 
         // 2. Validate quantity
-        if (event.getQuantity() == null || event.getQuantity() <= 0) {
+        if (event.getPayload().getSkuId()== null || event.getPayload().getSkuId().isBlank()) {
+            throw new InvalidInventoryException("SKU ID is required");
+        }
 
-            throw new IllegalArgumentException(
+        if (event.getPayload().getWarehouseId() == null || event.getPayload().getWarehouseId().isBlank()) {
+            throw new InvalidInventoryException("Warehouse ID is required");
+        }
+
+        if (event.getPayload().getBinId() == null || event.getPayload().getBinId().isBlank()) {
+            throw new InvalidInventoryException("Bin ID is required");
+        }
+
+        if (event.getPayload().getQuantity()== null || event.getPayload().getQuantity()<= 0) {
+            throw new InvalidInventoryException(
                     "Quantity must be greater than zero"
             );
         }
@@ -76,14 +89,14 @@ public class InventoryService {
         InventoryBalance inventoryBalance =
                 inventoryBalanceRepository
                         .findBySkuIdAndWarehouseIdAndBinId(
-                                event.getSkuId(),
-                                event.getWarehouseId(),
-                                event.getBinId()
+                                event.getPayload().getSkuId(),
+                                event.getPayload().getWarehouseId(),
+                                event.getPayload().getBinId()
                         )
                         .orElseGet(() -> InventoryBalance.builder()
-                                .skuId(event.getSkuId())
-                                .warehouseId(event.getWarehouseId())
-                                .binId(event.getBinId())
+                                .skuId(event.getPayload().getSkuId())
+                                .warehouseId(event.getPayload().getWarehouseId())
+                                .binId(event.getPayload().getBinId())
                                 .availableQuantity(0L)
                                 .reservedQuantity(0L)
                                 .build());
@@ -91,20 +104,20 @@ public class InventoryService {
         // 4. Increase available quantity
         inventoryBalance.setAvailableQuantity(
                 inventoryBalance.getAvailableQuantity()
-                        + event.getQuantity()
+                        + event.getPayload().getQuantity()
         );
 
         inventoryBalanceRepository.save(inventoryBalance);
 
         // 5. Create inventory movement
         InventoryMovement movement = InventoryMovement.builder()
-                .skuId(event.getSkuId())
-                .warehouseId(event.getWarehouseId())
-                .binId(event.getBinId())
+                .skuId(event.getPayload().getSkuId())
+                .warehouseId(event.getPayload().getWarehouseId())
+                .binId(event.getPayload().getBinId())
                 .movementType("PUT_AWAY")
-                .quantity(event.getQuantity())
-                .referenceType(event.getReferenceType())
-                .referenceId(event.getReferenceId())
+                .quantity(event.getPayload().getQuantity())
+                .referenceType(event.getPayload().getReferenceType())
+                .referenceId(event.getPayload().getReferenceId())
                 .eventId(event.getEventId())
                 .build();
 
@@ -120,14 +133,17 @@ public class InventoryService {
                         .source("inventory-service")
                         .correlationId(event.getCorrelationId())
                         .entityId(event.getEntityId())
-                        .skuId(event.getSkuId())
-                        .warehouseId(event.getWarehouseId())
-                        .binId(event.getBinId())
-                        .availableQuantity(
-                                inventoryBalance.getAvailableQuantity()
+                        .payload(
+                                InventoryPayload.builder()
+                                        .skuId(event.getPayload().getSkuId())
+                                        .warehouseId(event.getPayload().getWarehouseId())
+                                        .binId(event.getPayload().getBinId())
+                                        .availableQuantity(
+                                                inventoryBalance.getAvailableQuantity()
+                                        )
+                                        .build()
                         )
                         .build();
-
         // 7. Save InventoryUpdated event to Outbox
         try {
 
@@ -139,7 +155,7 @@ public class InventoryService {
                             .eventId(updatedEvent.getEventId())
                             .eventType("InventoryUpdated")
                             .topic("inventory-updated")
-                            .eventKey(updatedEvent.getSkuId())
+                            .eventKey(updatedEvent.getPayload().getSkuId())
                             .payload(payload)
                             .published(false)
                             .build();
@@ -148,7 +164,7 @@ public class InventoryService {
 
             System.out.println(
                     "InventoryUpdated event saved to Outbox for SKU: "
-                            + updatedEvent.getSkuId()
+                            + updatedEvent.getPayload().getSkuId()
             );
 
         } catch (JsonProcessingException e) {
@@ -161,7 +177,7 @@ public class InventoryService {
         // 8. Log success
         System.out.println(
                 "Inventory updated successfully for SKU: "
-                        + event.getSkuId()
+                        + event.getPayload().getSkuId()
         );
     }
 }
